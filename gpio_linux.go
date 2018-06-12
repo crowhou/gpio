@@ -79,10 +79,11 @@ func setupEpoll() {
 			}
 			for i := 0; i < numEvents; i++ {
 				if eventPin, exists := watchEventCallbacks.Load(int(epollEvents[i].Fd)); exists {
-					if eventPin.initial {
-						eventPin.initial = false
+					p := eventPin(*pin)
+					if p.initial {
+						p.initial = false
 					} else {
-						eventPin.callback()
+						p.callback()
 					}
 				}
 			}
