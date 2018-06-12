@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -45,14 +46,14 @@ var (
 
 // watchEventCallbacks is a map of pins and their callbacks when
 // watching for interrupts
-var watchEventCallbacks map[int]*pin
+var watchEventCallbacks *sync.Map // actual [int]*pin
 
 // epollFD is the FD for epoll
 var epollFD int
 
 func init() {
 	setupEpoll()
-	watchEventCallbacks = make(map[int]*pin)
+	watchEventCallbacks = new(sync.Map)
 }
 
 // setupEpoll sets up epoll for use
@@ -77,7 +78,7 @@ func setupEpoll() {
 				panic(fmt.Sprintf("EpollWait error: %v", err))
 			}
 			for i := 0; i < numEvents; i++ {
-				if eventPin, exists := watchEventCallbacks[int(epollEvents[i].Fd)]; exists {
+				if eventPin, exists := watchEventCallbacks.Load(int(epollEvents[i].Fd)); exists {
 					if eventPin.initial {
 						eventPin.initial = false
 					} else {
@@ -211,7 +212,7 @@ func (p *pin) BeginWatch(edge Edge, callback IRQEvent) error {
 	fd := int(p.valueFile.Fd())
 
 	p.callback = callback
-	watchEventCallbacks[fd] = p
+	watchEventCallbacks.Store(fd, p)
 
 	if err := syscall.SetNonblock(fd, true); err != nil {
 		return err
@@ -240,7 +241,7 @@ func (p *pin) EndWatch() error {
 		return err
 	}
 
-	delete(watchEventCallbacks, fd)
+	watchEventCallbacks.Delete(fd)
 
 	return nil
 
