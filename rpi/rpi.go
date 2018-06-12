@@ -102,6 +102,9 @@ const (
 
 func initRPi() {
 	memfd, err := os.OpenFile("/dev/mem", os.O_RDWR|os.O_SYNC, 0)
+	if os.IsPermission(err) { // try gpiomem otherwise (some extra functions like clock and pwm setting wont work)
+		memfd, err = os.OpenFile("/dev/gpiomem", os.O_RDWR|os.O_SYNC, 0)
+	}
 	if err != nil {
 		log.Fatalf("rpi: unable to open /dev/mem: %v", err)
 	}
